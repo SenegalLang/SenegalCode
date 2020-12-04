@@ -4,5 +4,5 @@ export interface VariablePathDescription {
 }
 
 export interface VariablePathMap {
-    [template: string]: VariablePathDescription[];
+    [variable: string]: VariablePathDescription[];
 }

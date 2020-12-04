@@ -1,6 +1,6 @@
 import linenumber = require('linenumber');
 import fs = require('fs');
-import { VariablePathMap, VariablePathDescription } from './interfaces';
+import { VariablePathMap, VariablePathDescription } from '../interfaces';
 
 function insertElementWithKey (variableName: string, element: VariablePathDescription, allVariablePathMaps: VariablePathMap): void {
     if (Array.isArray(allVariablePathMaps[variableName])) {
@@ -11,20 +11,47 @@ function insertElementWithKey (variableName: string, element: VariablePathDescri
 }
 
 export function parseFile (file: string, allVariablePathMaps: VariablePathMap) {
-    const variablePattern: RegExp = /\s*var\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:=.+)?;/gm;
-    const content: string = fs.readFileSync(file, 'utf8');
+    const variablePattern: RegExp = /\s*var\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*/g;
+    const classPattern: RegExp = /\s*class\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\{.*\}/gm;
+    const functionPattern: RegExp = /\s*function\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(.*\)\s*\{.*\}/gm;
     let n: RegExpExecArray;
 
+    const content: string = fs.readFileSync(file, 'utf8');
+
     while (n = variablePattern.exec(content)) {
-        const lineNr = linenumber(content, n[0]);
+        const lineNum = linenumber(content, n[0]);
         const variableName: string = n[1];
 
         const newItem: VariablePathDescription = {
             path: file,
-            line: lineNr ? lineNr[0].line - 1 : 1
+            line: lineNum
         };
 
         insertElementWithKey(variableName, newItem, allVariablePathMaps);
+    }
+
+    while (n = classPattern.exec(content)) {
+        const lineNum = linenumber(content, n[0]);
+        const className: string = n[1];
+
+        const newItem: VariablePathDescription = {
+            path: file,
+            line: lineNum
+        };
+
+        insertElementWithKey(className, newItem, allVariablePathMaps);
+    }
+
+    while (n = functionPattern.exec(content)) {
+        const lineNum = linenumber(content, n[0]);
+        const functionName: string = n[1];
+
+        const newItem: VariablePathDescription = {
+            path: file,
+            line: lineNum
+        };
+
+        insertElementWithKey(functionName, newItem, allVariablePathMaps);
     }
 }
 

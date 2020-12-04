@@ -1,5 +1,5 @@
 import vscode = require('vscode');
-import { VariablePathMap, VariablePathDescription } from './interfaces';
+import { VariablePathMap, VariablePathDescription } from '../interfaces';
 import { parseFiles, parseFile } from './parse';
 
 
@@ -58,7 +58,7 @@ export class SenegalDefinitionProvider implements vscode.DefinitionProvider {
     }
 
     private definitionLocation (document: vscode.TextDocument, position: vscode.Position): Promise<VariablePathDescription[]> {
-        const wordRange: vscode.Range = document.getWordRangeAtPosition(position, /[\w\d.]+/);
+        const wordRange: vscode.Range = document.getWordRangeAtPosition(position, /[a-zA-Z_][a-zA-Z0-9_]*/m);
         const lineText: string = document.lineAt(position.line).text;
         const variableToSearchFor: string = document.getText(wordRange);
         const variableData: VariablePathDescription[] = this.getVariableDescription(variableToSearchFor, document);

@@ -10,10 +10,13 @@ import {
 	TransportKind
 } from 'vscode-languageclient';
 import { SenegalDefinitionProvider } from './definition-provider/senegal-definition-provider';
+import { SenegalCompletionProvider } from './completion-provider/senegal-completion-provider';
 
 let client: LanguageClient;
 
 const senegalDefProvider = new SenegalDefinitionProvider();
+const senegalCompletionProvider = new SenegalCompletionProvider(senegalDefProvider);
+
 const senegalDocFilter: vscode.DocumentFilter = {
     language: 'sgl',
     scheme: 'file'
@@ -59,6 +62,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 function registerProviders (context: vscode.ExtensionContext): void {
 	context.subscriptions.push(vscode.languages.registerDefinitionProvider(senegalDocFilter, senegalDefProvider));
+	context.subscriptions.push(vscode.languages.registerCompletionItemProvider(senegalDocFilter, senegalCompletionProvider, "."));
 }
 
 function initalizeProviders (): void {
