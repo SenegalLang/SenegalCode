@@ -1,0 +1,10 @@
+.vscodeignore
+
+.idea/
+
+**/node_modules/
+**/out/
+
+npm.sh
+
+*.vsix

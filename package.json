@@ -1,0 +1,94 @@
+{
+	"name": "senegalcode",
+	"publisher": "SenegalLang",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/Calamity210/SenegalCode.git"
+	},
+	"displayName": "SenegalCode",
+	"description": "VSC extension for Sgl",
+	"version": "0.0.1",
+	"engines": {
+		"vscode": "^1.47.0"
+	},
+	"categories": [
+		"Programming Languages"
+	],
+	"icon": "assets/logo.png",
+	"activationEvents": [
+		"onLanguage:sgl"
+	],
+	"main": "./client/out/extension",
+	"contributes": {
+		"languages": [
+			{
+				"id": "sgl",
+				"aliases": [
+					"Sgl",
+					"senegal",
+					"Senegal"
+				],
+				"extensions": [
+					".sgl"
+				],
+				"configuration": "./language-configuration.json"
+			}
+		],
+		"configuration": {
+			"type": "object",
+			"title": "Senegal configuration",
+			"properties": {
+				"sgl.maxNumberOfProblems": {
+					"scope": "resource",
+					"type": "number",
+					"default": 100,
+					"description": "Controls the maximum number of problems produced by the server."
+				},
+				"sgl.trace.server": {
+					"scope": "window",
+					"type": "string",
+					"enum": [
+						"off",
+						"messages",
+						"verbose"
+					],
+					"default": "off",
+					"description": "Traces the communication between VS Code and the language server."
+				}
+			}
+		},
+		"grammars": [
+			{
+				"language": "sgl",
+				"scopeName": "source.sgl",
+				"path": "./syntaxes/sgl.tmLanguage.json"
+			}
+		],
+		"configurationDefaults": {
+			"[sgl]": {
+				"editor.tabSize": 2,
+				"editor.insertSpaces": true,
+				"editor.detectIndentation": false,
+				"editor.suggest.insertMode": "replace"
+			}
+		},
+		"colors": [
+			{
+				"id": "sgl.closingLabels",
+				"description": "The color of the 'closing label' annotations shown against constructor, method invocations and lists that span multiple lines. If not supplied, the color for 'tab.inactiveForeground' will be used.",
+				"defaults": {
+					"dark": "tab.inactiveForeground",
+					"light": "tab.inactiveForeground",
+					"highContrast": "tab.inactiveForeground"
+				}
+			}
+		]
+	},
+	"scripts": {
+		"vscode:prepublish": "npm run compile",
+		"compile": "tsc -b",
+		"watch": "tsc -b -w",
+		"postinstall": "cd client && npm install && cd ../server && npm install && cd ..",
+		"test": "sh ./scripts/e2e.sh"
+	}
+}
