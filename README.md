@@ -6,6 +6,6 @@ VSC Extension for Senegal Language Support
 - Syntax highlighting
 - (Go to / peek) definition
 - Completion Provider
-- Code analysis/diagnostic (WIP)
+- Code analysis/diagnostic
 - Snippets (WIP)
 - Find References (WIP)
