@@ -1,5 +1,6 @@
 {
 	"version": "0.2.0",
+	"console": "integratedTerminal",
 	"configurations": [
 		{
 			"type": "extensionHost",
@@ -10,7 +11,7 @@
 			"outFiles": ["${workspaceRoot}/client/out/**/*.js"],
 			"preLaunchTask": {
 				"type": "npm",
-				"script": "install"
+				"script": "watch"
 			}
 		},
 		{

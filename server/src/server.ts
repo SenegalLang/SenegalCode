@@ -8,19 +8,37 @@ import {
     DidChangeConfigurationNotification,
     CompletionItem,
     TextDocumentSyncKind,
-    InitializeResult
+    InitializeResult,
+    CompletionItemKind,
+    TextDocumentPositionParams,
+    Location,
+    Declaration,
+    Range,
+    Position,
+    NotificationType
 } from 'vscode-languageserver';
 
 import {
     TextDocument
 } from 'vscode-languageserver-textdocument';
-import { Issue, issues } from './issues';
+import { Lexer } from './lexer';
+import { DeclarationType, Parser } from './parse';
+import { TokenType } from './utils';
 
 let connection = createConnection(ProposedFeatures.all);
 
 let documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
 let hasConfigurationCapability: boolean = false;
 let hasWorkspaceFolderCapability: boolean = false;
+
+let parser: Parser;
+
+function handleCompletionItem(data: number, item: (CompletionItem | undefined)): CompletionItem {
+    if (item == undefined)
+        item = CompletionItem.create('new');
+
+        return item;
+}
 
 connection.onInitialize((params: InitializeParams) => {
     let capabilities = params.capabilities;
@@ -35,7 +53,10 @@ connection.onInitialize((params: InitializeParams) => {
     const result: InitializeResult = {
         capabilities: {
             textDocumentSync: TextDocumentSyncKind.Incremental,
-            definitionProvider: false
+            definitionProvider: true,
+            completionProvider: {
+                resolveProvider: true
+            }
        }
     };
     if (hasWorkspaceFolderCapability) {
@@ -45,6 +66,7 @@ connection.onInitialize((params: InitializeParams) => {
             }
         };
     }
+
     return result;
 });
 
@@ -59,61 +81,123 @@ connection.onInitialized(() => {
     }
 });
 
+documents.onDidSave(doc => {
+    let lexer: Lexer = new Lexer(doc.document.getText());
+    parser = new Parser(lexer);
 
-connection.onDidChangeConfiguration(() => {
-    documents.all().forEach(validateTextDocument);
+    connection.window.showInformationMessage("Parsing File...");
+
+    while (parser.current.type != TokenType.SENEGAL_EOF && parser != undefined) {
+        parser.parseDeclarationOrStatement();
+    }
+
+    validateTextDocument(doc.document);
 });
 
-documents.onDidChangeContent(change => {
-    validateTextDocument(change.document);
+documents.onDidOpen(doc => {
+    let lexer: Lexer = new Lexer(doc.document.getText());
+    parser = new Parser(lexer);
+
+    connection.window.showInformationMessage("Parsing File...");
+
+    while (parser.current.type != TokenType.SENEGAL_EOF && parser != undefined) {
+        parser.parseDeclarationOrStatement();
+    }
+
+    validateTextDocument(doc.document);
 });
 
 async function validateTextDocument(textDocument: TextDocument): Promise<void> {
-    let diagnostics: Diagnostic[] = [...validatePatterns(textDocument)];
+    let diagnostics: Diagnostic[] = [];
+
+    diagnostics.push({
+        severity: DiagnosticSeverity.Hint,
+        range: {
+            start: textDocument.positionAt(0),
+            end: textDocument.positionAt(1),
+        },
+        message: parser.declarations.size.toString()
+    });
+
+    parser.errors.forEach((e) => {
+        diagnostics.push(
+            {
+                severity: e.severity,
+                range: {
+                    start: textDocument.positionAt(e.start),
+                    end: textDocument.positionAt(e.end)
+                },
+                message: e.msg,
+                source: textDocument.uri.substring(textDocument.uri.lastIndexOf("/") + 1)
+            }
+        );
+    });
 
     connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
 }
 
-function validatePatterns (textDocument: TextDocument): Diagnostic[] {
-    let diagnosticResults: Diagnostic[] = [];
+connection.onCompletion(
+    (_textDocumentPosition: TextDocumentPositionParams): CompletionItem[] => {
 
-    issues.forEach(issue => {
-        diagnosticResults = diagnosticResults.concat(validateWithPattern(textDocument, issue));
-    });
+        let tempCompletionItems = [];
 
-    return diagnosticResults;
-}
+        parser.declarations.forEach((d, k) => {
+            let declarationType: CompletionItemKind;
 
-function validateWithPattern (textDocument: TextDocument, issue: Issue): Diagnostic[] {
-    const severity: DiagnosticSeverity = issue.severity;
-    const pattern: RegExp = issue.pattern;
-    const message: string = issue.message;
-    const text = textDocument.getText();
+            switch(d.type) {
+                case DeclarationType.VAR:
+                    declarationType = CompletionItemKind.Function;
+                    break;
 
-    const diagnosticResults: Diagnostic[] = [];
-    let m: RegExpExecArray | null;
+                case DeclarationType.FUNCTION:
+                    declarationType = CompletionItemKind.Function;
 
-    while (m = pattern.exec(text)) {
-        const startPosition: number = m.index + m[0].indexOf(m[1], issue.start);
-
-        diagnosticResults.push({
-            severity,
-            range: {
-                start: textDocument.positionAt(startPosition),
-                end: textDocument.positionAt(startPosition + m[1].length)
-            },
-            message: `${m[1]}: ${message}.`,
-            source: textDocument.uri.substring(textDocument.uri.lastIndexOf("/") + 1)
+                case DeclarationType.CLASS:
+                    declarationType = CompletionItemKind.Class;
+            }
+            tempCompletionItems.push(
+                {label: d.id, kind: declarationType, data: tempCompletionItems.length}
+            );
         });
+
+
+        return tempCompletionItems;
+    }
+);
+
+connection.onCompletionResolve(
+    (item: CompletionItem): CompletionItem => {
+        return handleCompletionItem(item.data, item);
+    }
+);
+
+connection.onDefinition((tdPos: TextDocumentPositionParams): Location[] => {
+    let locations: Location[] = [];
+
+    let idPattern = /[a-zA-Z_][a-zA-Z0-9_]*/;
+
+    let doc = documents.get(tdPos.textDocument.uri)!;
+
+    let id = idPattern.exec(doc.getText().substring(doc.offsetAt(Position.create(tdPos.position.line, 0))))[0];
+
+    while (id.length < tdPos.position.character) {
+        id = idPattern.exec(doc.getText().substring(doc.offsetAt(Position.create(tdPos.position.line, id.length))))[0];
     }
 
-    return diagnosticResults;
-}
+    parser.declarations.forEach((d, k) => {
+        if (k.match(id)) {
+            locations.push(Location.create(
+                tdPos.textDocument.uri,
+                {
+                  start: Position.create(d.line, d.char),
+                  end: Position.create(d.line, d.char)
+                }
+            ));
+        }
+    });
 
-
-connection.onDidChangeWatchedFiles(_change => {
-    
-});
+    return locations;
+})
 
 documents.listen(connection);
 
